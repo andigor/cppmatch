@@ -68,29 +68,12 @@ using namespace clang::tooling;
 using namespace clang;
 using namespace clang::ast_matchers;
 
-//StatementMatcher LoopMatcher =
-//forStmt(hasLoopInit(declStmt(hasSingleDecl(varDecl(
-//  hasInitializer(integerLiteral(equals(0)))))))).bind("forLoop");
-
-//StatementMatcher mmm = cxxMemberCallExpr( callee( cxxMethodDecl(hasName("GetNextAssoc") ) ) ).bind("mmm"); !! works
 StatementMatcher mmm = cxxMemberCallExpr( callee( cxxMethodDecl(hasName("LogInfo") ) ) ).bind("mmm");
-//StatementMatcher mmm = implicitCastExpr(hasImplicitDestinationType( asString("ATL::CStringT<char, StrTraitMFC_DLL<char> >") ) ).bind("mmm");
-//StatementMatcher mmm = implicitCastExpr( hasSourceExpression( ) ).bind("mmm");
-//StatementMatcher mmm = cxxBindTemporaryExpr( cxxConstructExpr( hasDeclaration( cxxDestructorDecl( hasName( "CStringT" ) ) ) ) ).bind("mmm");
-//StatementMatcher mmm = cxxBindTemporaryExpr( has( cxxConstructExpr( hasDeclaration( cxxConstructorDecl( hasName( "CStringT" ) ) ) ) ) ).bind("mmm"); // !! works
-
-//StatementMatcher mmm = cxxBindTemporaryExpr( has( cxxConstructExpr( hasDeclaration( cxxConstructorDecl( hasName( "CStringT" ) ) ) ) ), hasDescendant(memberExpr().bind("member"))).bind("mmm"); // !! works
-
-//StatementMatcher mmm = cxxBindTemporaryExpr( has(
-//                                                  cxxConstructExpr( hasDeclaration( cxxConstructorDecl( hasName( "CStringT" ) ) ) )
-//                                                )
-//                                           ).bind("mmm"); // !! works
-
 
 class LoopPrinter : public MatchFinder::MatchCallback {
 public :
   virtual void run(const MatchFinder::MatchResult& Result) {
-    //if (const ForStmt *FS = Result.Nodes.getNodeAs<clang::ForStmt>("forLoop"))
+
     if (const CXXMemberCallExpr* FS = Result.Nodes.getNodeAs<clang::CXXMemberCallExpr>("mmm")) {
       FS->dump();
       auto& manager = Result.Context->getSourceManager();
@@ -106,43 +89,6 @@ public :
         std::cout << "end_col:"   << manager.getSpellingColumnNumber(end_loc) << std::endl;
       }
     }
-
-    //if (const CXXBindTemporaryExpr* FS = Result.Nodes.getNodeAs<clang::CXXBindTemporaryExpr>("mmm")) {
-    //  auto& manager = Result.Context->getSourceManager();
-    //
-    //  std::cout << "file_name: " << manager.getFilename(FS->getBeginLoc()).str() << std::endl;
-    //  std::cout << "start_line:"<< manager.getSpellingLineNumber(FS->getBeginLoc()) << std::endl;
-    //  std::cout << "end_line:"  << manager.getSpellingLineNumber(FS->getEndLoc()) << std::endl;
-    //
-    //  std::cout << "start_col:" << manager.getSpellingColumnNumber(FS->getBeginLoc()) << std::endl;
-    //  std::cout << "end_col:"   << manager.getSpellingColumnNumber(FS->getEndLoc()) << std::endl;
-    //
-    //  FS->dump();
-    //
-    //  //std::cout << FS->getMethodDecl()->getNameAsString() << std::endl;
-    //  // std::cout << FS->getCallee()->getType()->getAsCXXRecordDecl()->getName().str() << std::endl;
-    //  //std::cout << FS->getDirectCallee()->getNameAsString() << std::endl;
-    //}
-    //
-    //if (const MemberExpr* FS = Result.Nodes.getNodeAs<clang::MemberExpr>("member")) {
-    //  auto& manager = Result.Context->getSourceManager();
-    //
-    //  std::cout << "2file_name: " << manager.getFilename(FS->getBeginLoc()).str() << std::endl;
-    //  std::cout << "2start_line:"<< manager.getSpellingLineNumber(FS->getBeginLoc()) << std::endl;
-    //  std::cout << "2end_line:"  << manager.getSpellingLineNumber(FS->getEndLoc()) << std::endl;
-    //
-    //  std::cout << "2start_col:" << manager.getSpellingColumnNumber(FS->getBeginLoc()) << std::endl;
-    //  std::cout << "2end_col:"   << manager.getSpellingColumnNumber(FS->getEndLoc()) << std::endl;
-    //
-    //  std::cout << FS->getMemberNameInfo().getAsString() << std::endl;
-    //
-    //  FS->dump();
-    //
-    //  //std::cout << FS->getMethodDecl()->getNameAsString() << std::endl;
-    //  // std::cout << FS->getCallee()->getType()->getAsCXXRecordDecl()->getName().str() << std::endl;
-    //  //std::cout << FS->getDirectCallee()->getNameAsString() << std::endl;
-    //}
-
   }
 };
 
