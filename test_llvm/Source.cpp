@@ -80,13 +80,15 @@ public :
       std::cout << "file_name: " << manager.getFilename( FS->getExprLoc() ).str() << std::endl;
       for (const auto& a : FS->arguments()) {
         const auto& begin_loc = a->getBeginLoc();
-        const auto& end_loc = a->getEndLoc();
+        const auto& end_loc   = a->getEndLoc();
+
+        SourceLocation real_end = clang::Lexer::getLocForEndOfToken(end_loc, 0, manager, clang::LangOptions{});
 
         std::cout << "start_line:"<< manager.getSpellingLineNumber(begin_loc) << std::endl;
-        std::cout << "end_line:"  << manager.getSpellingLineNumber(end_loc) << std::endl;
+        std::cout << "end_line:"  << manager.getSpellingLineNumber(real_end) << std::endl;
 
         std::cout << "start_col:" << manager.getSpellingColumnNumber(begin_loc) << std::endl;
-        std::cout << "end_col:"   << manager.getSpellingColumnNumber(end_loc) << std::endl;
+        std::cout << "end_col:"   << manager.getSpellingColumnNumber(real_end) << std::endl;
       }
     }
   }
