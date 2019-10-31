@@ -19,13 +19,16 @@ using namespace clang::tooling;
 using namespace clang;
 using namespace clang::ast_matchers;
 
-StatementMatcher mmm = cxxMemberCallExpr( callee( cxxMethodDecl(hasName("LogInfo") ) ) ).bind("mmm");
+StatementMatcher cstring_cast_matcher = cxxMemberCallExpr( anyOf(
+                                                  callee( cxxMethodDecl(hasName("LogInfo" ) ) )
+                                                , callee( cxxMethodDecl(hasName("LogDebug") ) )
+                                               ) ).bind("cstring_cast_macther");
 
-class LoopPrinter : public MatchFinder::MatchCallback {
-public :
+class MatcherCallback : public MatchFinder::MatchCallback {
+public:
   virtual void run(const MatchFinder::MatchResult& Result) {
 
-    if (const CXXMemberCallExpr* FS = Result.Nodes.getNodeAs<clang::CXXMemberCallExpr>("mmm")) {
+    if (const CXXMemberCallExpr* FS = Result.Nodes.getNodeAs<clang::CXXMemberCallExpr>("cstring_cast_macther")) {
       FS->dump();
       auto& manager = Result.Context->getSourceManager();
       std::cout << "file_name: " << manager.getFilename( FS->getExprLoc() ).str() << std::endl;
@@ -55,10 +58,10 @@ int main(int argc, const char** argv)
   CommonOptionsParser op(argc, argv, CastMatcherCategory);
   ClangTool Tool(op.getCompilations(), op.getSourcePathList());
 
-  LoopPrinter Printer;
+  MatcherCallback Printer;
   MatchFinder Finder;
-  //Finder.addMatcher(LoopMatcher, &Printer);
-  Finder.addMatcher(mmm, &Printer);
+
+  Finder.addMatcher(cstring_cast_matcher, &Printer);
 
   auto ret = Tool.run(newFrontendActionFactory(&Finder).get());
 
