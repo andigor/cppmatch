@@ -46,17 +46,14 @@ public :
 };
 
 
-static llvm::cl::OptionCategory CastMatcherCategory("cast-matcher options");
+static llvm::cl::OptionCategory CastMatcherCategory("warnings remover");
 static llvm::cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
-static llvm::cl::extrahelp MoreHelp("\nThis tool helps the detection of explicit"
-  "C-style casts.");
+static llvm::cl::extrahelp MoreHelp("\n More help needed");
 
 int main(int argc, const char** argv)
 {
   CommonOptionsParser op(argc, argv, CastMatcherCategory);
   ClangTool Tool(op.getCompilations(), op.getSourcePathList());
-
-  // auto ret = Tool.run(newFrontendActionFactory<clang::SyntaxOnlyAction>().get());
 
   LoopPrinter Printer;
   MatchFinder Finder;
