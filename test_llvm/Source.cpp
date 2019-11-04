@@ -25,47 +25,34 @@ using namespace clang::tooling;
 using namespace clang;
 using namespace clang::ast_matchers;
 
-auto prevent_double_get_string =
-  unless(
-    hasAncestor(
-      memberExpr(
-        hasDeclaration(
-          decl(
-            cxxMethodDecl(
-              hasName("GetString")
-            )
-          )
-        )
-      )
-    )
-  );
-
-
 StatementMatcher cstring_cast_matcher = cxxMemberCallExpr(
                                                anyOf(
                                                   callee( cxxMethodDecl(hasName("LogInfo" ) ) )
                                                 , callee( cxxMethodDecl(hasName("LogDebug") ) )
                                                 , callee( cxxMethodDecl(hasName("LogError") ) )
+                                                , callee( cxxMethodDecl(hasName("LogAlarm") ) )
                                                )
-                                               , allOf (
-                                                   forEach(
-                                                     cxxBindTemporaryExpr(
-                                                       hasType(
-                                                         asString("CString")
-                                                       )
-                                                     ).bind( "temp_arg" )
-                                                   )
-                                                   ,
-                                                   forEach(
-                                                     conditionalOperator(
-                                                       hasType(
-                                                         asString("CString")
-                                                       )
-                                                     ).bind( "conditional_arg" )
-                                                   )
-                                                 , anything()
+                                               ,
+                                               eachOf (
+                                                 forEach(
+                                                   cxxBindTemporaryExpr(
+                                                     hasType(
+                                                       asString("CString")
+                                                     )
+                                                   ).bind( "temp_arg" )
                                                  )
+                                                 ,
+                                                 forEach(
+                                                   conditionalOperator(
+                                                     hasType(
+                                                       asString("CString")
+                                                     )
+                                                   ).bind( "conditional_arg" )
+                                                 )
+                                               )
                                          ).bind("cstring_cast_matcher");
+
+
 
 struct file_line {
   std::string line_;
@@ -179,60 +166,6 @@ public:
       a->dump();
       insert_explicit_static_cast(a, Result.Context);
     }
-
-//    if (const CXXMemberCallExpr* FS = Result.Nodes.getNodeAs<clang::CXXMemberCallExpr>("cstring_cast_matcher")) {
-//      //auto& manager = Result.Context;
-//
-//      //auto file_name = manager.getFilename(FS->getExprLoc()).str();
-//      //FS->dump();
-//      for (const auto& a : FS->arguments()) {
-//        if (a->getType().getAsString() != "CString") {
-//          continue;
-//        }
-//
-////        if (auto op = dyn_cast_or_null<clang::ConditionalOperator>(a)) {
-////          op->dump();
-////
-////          // assuming no recursive operators here
-////          if (op->getLHS()->getType().getAsString() == "CString") {
-////            //insert_explicit_get_string(file_name, op->getLHS(), manager);
-////            //std::cout << "LHS!" << std::endl;
-////          }
-////
-////          if (op->getRHS()->getType().getAsString() == "CString") {
-////            //insert_explicit_get_string(file_name, op->getRHS(), manager);
-////            //std::cout << "RHS!" << std::endl;
-////          }
-////
-////        }
-//        else {
-//          //insert_explicit_get_string(file_name, a, manager);
-//          insert_explicit_static_cast(a,  Result.Context);
-//        }
-//      }
-//    }
-//
-    //if ( const MemberExpr* a = Result.Nodes.getNodeAs<clang::MemberExpr>("nested_member") ) {
-    //  //std::cout << "haha: " << a->getType().getAsString() << std::endl;
-    //  if (a->getType().getAsString() == "CString") {
-    //    //a->dump();
-    //
-    //    auto& manager = Result.Context->getSourceManager();
-    //    auto file_name = manager.getFilename(a->getExprLoc()).str();
-    //    insert_explicit_get_string(file_name, a, manager);
-    //  }
-    //}
-
-    //if ( const CXXMemberCallExpr* a = Result.Nodes.getNodeAs<clang::CXXMemberCallExpr>("nested_call") ) {
-    //  //std::cout << "haha: " << a->getType().getAsString() << std::endl;
-    //  if (a->getType().getAsString() == "CString") {
-    //    //a->dump();
-    //
-    //    auto& manager = Result.Context->getSourceManager();
-    //    auto file_name = manager.getFilename(a->getExprLoc()).str();
-    //    insert_explicit_get_string(file_name, a, manager);
-    //  }
-    //}
   }
 
   template <class Node, class Manager>
