@@ -31,13 +31,24 @@ StatementMatcher cstring_cast_matcher = cxxMemberCallExpr(
                                                 , callee( cxxMethodDecl(hasName("LogDebug") ) )
                                                 , callee( cxxMethodDecl(hasName("LogError") ) )
                                                 , callee( cxxMethodDecl(hasName("LogAlarm") ) )
+                                                , callee( cxxMethodDecl(hasName("LogEvent") ) )
+                                                , callee( cxxMethodDecl(hasName("Debug") ) )
+                                                , callee( cxxMethodDecl(hasName("Info") ) )
+                                                , callee( cxxMethodDecl(hasName("Format") ) )
+                                                , callee( cxxMethodDecl(hasName("Error") ) )
                                                )
                                                ,
                                                eachOf (
                                                  forEach(
                                                    cxxBindTemporaryExpr(
-                                                     hasType(
-                                                       asString("CString")
+                                                     anyOf (
+                                                       hasType(
+                                                         asString("CString")
+                                                       )
+                                                       ,
+                                                       hasType(
+                                                         asString("const CString")
+                                                       )
                                                      )
                                                    ).bind( "temp_arg" )
                                                  )
@@ -53,6 +64,41 @@ StatementMatcher cstring_cast_matcher = cxxMemberCallExpr(
                                          ).bind("cstring_cast_matcher");
 
 
+StatementMatcher assigment_macther =
+ifStmt(
+  has (
+    implicitCastExpr (
+      has (
+        implicitCastExpr (
+          has (
+            binaryOperator(
+              hasOperatorName("=")
+            ).bind("assign_within_if")
+          )
+        )
+      )
+    )
+  )
+);
+
+StatementMatcher narrow_argument_type_matcher =
+callExpr(
+  hasAnyArgument(
+    implicitCastExpr(
+      hasImplicitDestinationType(
+        asString("in16_t")
+      )
+      ,
+      has(
+        declRefExpr(
+          hasType(
+            asString("int")
+          )
+        ).bind( "implicit_argument_cast" )
+      )
+    )
+  )
+);
 
 struct file_line {
   std::string line_;
@@ -163,8 +209,16 @@ public:
     }
 
     if (const ConditionalOperator* a = Result.Nodes.getNodeAs<clang::ConditionalOperator>("conditional_arg")) {
-      a->dump();
+      //a->dump();
       insert_explicit_static_cast(a, Result.Context);
+    }
+
+    if ( const BinaryOperator* b = Result.Nodes.getNodeAs<clang::BinaryOperator>("assign_within_if")) {
+      wrap_direct_assigmnent_with_braces( b, Result.Context );
+    }
+
+    if ( const DeclRefExpr* v = Result.Nodes.getNodeAs<clang::DeclRefExpr>("implicit_argument_cast")) {
+      v->dump();
     }
   }
 
@@ -219,6 +273,33 @@ public:
       content.insert_text(end_line_num - 1, end_col_num - 1, " )");
     }
   }
+  template <class Node>
+  void wrap_direct_assigmnent_with_braces(Node n, const clang::ASTContext* context) {
+    const auto& manager = context->getSourceManager();
+    auto file_name = manager.getFilename(n->getExprLoc()).str();
+    file_content& content = files_content_.get_file_data(file_name);
+
+    {
+      const auto& start_loc = n->getBeginLoc();
+
+      const auto full_loc = context->getFullLoc(start_loc);
+
+
+      const unsigned start_line_num = manager.getSpellingLineNumber(start_loc);
+      const unsigned start_col_num = manager.getSpellingColumnNumber(start_loc);
+
+      content.insert_text(start_line_num - 1, start_col_num - 1, "( ");
+    }
+    {
+      auto real_end = get_real_end( n, manager );
+
+      const unsigned end_line_num = manager.getSpellingLineNumber(real_end);
+      const unsigned end_col_num = manager.getSpellingColumnNumber(real_end);
+
+      content.insert_text(end_line_num - 1, end_col_num - 1, " ) ");
+    }
+
+  }
 };
 
 
@@ -239,6 +320,8 @@ int main(int argc, const char** argv)
       MatchFinder Finder;
 
       Finder.addMatcher(cstring_cast_matcher, &Printer);
+      Finder.addMatcher(assigment_macther, &Printer);
+      Finder.addMatcher(narrow_argument_type_matcher, &Printer);
 
       Tool.run(newFrontendActionFactory(&Finder).get());
     }
