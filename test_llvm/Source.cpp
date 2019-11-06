@@ -195,6 +195,19 @@ public:
     line.line_.insert(line.offset_ + col, txt);
     line.offset_ += len;
   }
+  void replace_text(size_t row, size_t start_col, size_t end_col, const char* txt)
+  {
+    size_t source_len = end_col - start_col;
+    size_t dest_len   = std::strlen(txt);
+    ssize_t delta = dest_len - source_len + 1;
+
+    file_line& line = lines_.at(row);
+
+    line.line_.replace(line.offset_ + start_col, source_len, txt);
+
+    line.offset_ += delta;
+    std::cout << "new_offset: " << line.offset_ << std::endl;
+  }
 private:
   void load(const std::string& file_name)
   {
