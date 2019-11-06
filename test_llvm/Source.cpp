@@ -158,6 +158,36 @@ callExpr(
   )
 );
 
+StatementMatcher minus_one_literal =
+callExpr(
+  unless(
+    isExpansionInSystemHeader()
+  )
+  ,
+  forEachArgumentWithParam(
+    has(
+      integerLiteral(
+        equals(1)
+        ,
+        hasAncestor(
+          unaryOperator(
+            hasOperatorName("-")
+          ).bind("minus_one_operator")
+        )
+      ).bind("minus_one_literal")
+    )
+    ,
+    parmVarDecl(
+      //anyOf (
+        hasType(
+          asString("const DWORD")
+        )
+      //)
+    )
+  )
+);
+
+
 struct file_line {
   std::string line_;
   ssize_t offset_ = 0;
@@ -296,6 +326,17 @@ public:
       const ParmVarDecl* d = Result.Nodes.getNodeAs<clang::ParmVarDecl>("implicit_argument_cast_param");
       insert_explicit_static_cast(v, Result.Context, d->getType().getAsString());
     }
+
+
+    if (const IntegerLiteral* v = Result.Nodes.getNodeAs<clang::IntegerLiteral>("minus_one_literal")) {
+      //v->dump();
+      //dump_location(v, Result.Context);
+      const UnaryOperator* o = Result.Nodes.getNodeAs<clang::UnaryOperator>("minus_one_operator");
+      replace_with(o, Result.Context, "0");
+
+      replace_with(v, Result.Context, "xffffffff");
+    }
+
   }
 
   template <class Node, class Manager>
@@ -444,6 +485,7 @@ int main(int argc, const char** argv)
       Finder.addMatcher(cstring_cast_matcher, &Printer);
       Finder.addMatcher(assigment_macther, &Printer);
       Finder.addMatcher(narrow_argument_type_matcher, &Printer);
+      Finder.addMatcher(minus_one_literal, &Printer);
 
       Tool.run(newFrontendActionFactory(&Finder).get());
     }
