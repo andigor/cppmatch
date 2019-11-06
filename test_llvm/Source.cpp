@@ -83,18 +83,26 @@ ifStmt(
 
 StatementMatcher narrow_argument_type_matcher =
 callExpr(
-  hasAnyArgument(
-    implicitCastExpr(
-      hasImplicitDestinationType(
-        asString("in16_t")
+  unless(
+    isExpansionInSystemHeader()
+  )
+  ,
+  forEachArgumentWithParam(
+    declRefExpr(
+      hasType(
+        asString("int")
       )
       ,
-      has(
-        declRefExpr(
-          hasType(
-            asString("int")
-          )
-        ).bind( "implicit_argument_cast" )
+      unless(
+        hasAncestor(
+          cxxStaticCastExpr()
+        )
+      )
+    ).bind("implicit_argument_cast")
+    ,
+    parmVarDecl(
+      hasType(
+        asString("int16_t")
       )
     )
   )
@@ -217,8 +225,11 @@ public:
       wrap_direct_assigmnent_with_braces( b, Result.Context );
     }
 
+    //if ( const DeclRefExpr* v = Result.Nodes.getNodeAs<clang::DeclRefExpr>("implicit_argument_cast")) {
+    //if ( const ImplicitCastExpr* v = Result.Nodes.getNodeAs<clang::ImplicitCastExpr>("implicit_argument_cast")) {
     if ( const DeclRefExpr* v = Result.Nodes.getNodeAs<clang::DeclRefExpr>("implicit_argument_cast")) {
-      v->dump();
+      //v->dump();
+      insert_explicit_static_cast(v, Result.Context, v->getType().getAsString());
     }
   }
 
