@@ -294,6 +294,30 @@ public:
   }
 
   template <class Node>
+  void dump_location (Node n, const clang::ASTContext* context) {
+    const auto& manager = context->getSourceManager();
+    auto file_name = manager.getFilename(n->getExprLoc()).str();
+    file_content& content = files_content_.get_file_data(file_name);
+
+    const auto& start_loc = n->getBeginLoc();
+
+    const unsigned start_line_num = manager.getSpellingLineNumber(start_loc);
+    const unsigned start_col_num = manager.getSpellingColumnNumber(start_loc);
+
+    auto real_end = get_real_end( n, manager );
+    const unsigned end_line_num = manager.getSpellingLineNumber(real_end);
+    const unsigned end_col_num = manager.getSpellingColumnNumber(real_end);
+
+    std::cout
+      << "start r: " << start_line_num
+      << " start c: " << start_col_num
+      << " end   r: " << end_line_num
+      << " end   c: " << end_col_num
+      << std::endl;
+  }
+
+
+  template <class Node>
   void insert_explicit_get_string(Node n, const clang::ASTContext* context) {
     const auto& manager = context->getSourceManager();
     auto file_name = manager.getFilename(n->getExprLoc()).str();
