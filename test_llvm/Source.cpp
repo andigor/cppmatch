@@ -210,7 +210,7 @@ public:
 
     if (const ConditionalOperator* a = Result.Nodes.getNodeAs<clang::ConditionalOperator>("conditional_arg")) {
       //a->dump();
-      insert_explicit_static_cast(a, Result.Context);
+      insert_explicit_static_cast(a, Result.Context, std::string("const char*"));
     }
 
     if ( const BinaryOperator* b = Result.Nodes.getNodeAs<clang::BinaryOperator>("assign_within_if")) {
@@ -245,7 +245,7 @@ public:
   }
 
   template <class Node>
-  void insert_explicit_static_cast(Node n, const clang::ASTContext* context) {
+  void insert_explicit_static_cast(Node n, const clang::ASTContext* context, const std::string& typ) {
     const auto& manager = context->getSourceManager();
     auto file_name = manager.getFilename(n->getExprLoc()).str();
     file_content& content = files_content_.get_file_data(file_name);
@@ -262,7 +262,7 @@ public:
       const unsigned start_line_num = manager.getSpellingLineNumber(start_loc);
       const unsigned start_col_num = manager.getSpellingColumnNumber(start_loc);
 
-      content.insert_text(start_line_num - 1, start_col_num - 1, "static_cast<const char*>( ");
+      content.insert_text(start_line_num - 1, start_col_num - 1, ("static_cast<" + typ + ">( ").c_str() );
     }
     {
       auto real_end = get_real_end( n, manager );
