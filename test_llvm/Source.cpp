@@ -81,6 +81,46 @@ ifStmt(
   )
 );
 
+//StatementMatcher narrow_argument_type_matcher =
+//callExpr(
+//  hasAnyArgument(
+//    implicitCastExpr(
+//      hasImplicitDestinationType(
+//        asString("int16_t")
+//      )
+////      ,
+////      has(
+////        declRefExpr(
+////          hasType(
+////            asString("int")
+////          )
+////        ).bind( "implicit_argument_cast" )
+////      )
+//    ).bind( "implicit_argument_cast" )
+//  )
+//);
+//StatementMatcher narrow_argument_type_matcher =
+//callExpr(
+//  unless(
+//    isExpansionInSystemHeader()
+//  )
+//  ,
+//  forEachArgumentWithParam(
+//    declRefExpr(
+//      hasType(
+//        asString("int")
+//      )
+//    ).bind("implicit_argument_cast")
+//    ,
+//    parmVarDecl(
+//      hasType(
+//        asString("int16_t")
+//      )
+//    )
+//  )
+//);
+
+
 StatementMatcher narrow_argument_type_matcher =
 callExpr(
   unless(
