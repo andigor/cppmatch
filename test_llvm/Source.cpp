@@ -400,6 +400,28 @@ public:
     }
 
   }
+
+  template <class Node>
+  void replace_with(Node n, const clang::ASTContext* context, const std::string& txt) {
+    const auto& manager = context->getSourceManager();
+    auto file_name = manager.getFilename(n->getExprLoc()).str();
+    file_content& content = files_content_.get_file_data(file_name);
+
+    const auto& start_loc = n->getBeginLoc();
+
+    const unsigned start_line_num = manager.getSpellingLineNumber(start_loc);
+    const unsigned start_col_num = manager.getSpellingColumnNumber(start_loc);
+
+    auto real_end = get_real_end( n, manager );
+    const unsigned end_line_num = manager.getSpellingLineNumber(real_end);
+    const unsigned end_col_num = manager.getSpellingColumnNumber(real_end);
+
+    assert(start_line_num == end_line_num);
+
+    content.replace_text(start_line_num - 1, start_col_num - 1, end_col_num - 1, txt.c_str());
+  }
+
+
 };
 
 
