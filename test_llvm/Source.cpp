@@ -144,7 +144,7 @@ callExpr(
       hasType(
         asString("int16_t")
       )
-    )
+    ).bind("implicit_argument_cast_param")
   )
 );
 
@@ -269,7 +269,9 @@ public:
     //if ( const ImplicitCastExpr* v = Result.Nodes.getNodeAs<clang::ImplicitCastExpr>("implicit_argument_cast")) {
     if ( const DeclRefExpr* v = Result.Nodes.getNodeAs<clang::DeclRefExpr>("implicit_argument_cast")) {
       //v->dump();
-      insert_explicit_static_cast(v, Result.Context, v->getType().getAsString());
+
+      const ParmVarDecl* d = Result.Nodes.getNodeAs<clang::ParmVarDecl>("implicit_argument_cast_param");
+      insert_explicit_static_cast(v, Result.Context, d->getType().getAsString());
     }
   }
 
