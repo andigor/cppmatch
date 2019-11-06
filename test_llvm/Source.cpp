@@ -141,8 +141,18 @@ callExpr(
     ).bind("implicit_argument_cast")
     ,
     parmVarDecl(
-      hasType(
-        asString("int16_t")
+      anyOf (
+        hasType(
+          asString("int16_t")
+        )
+        ,
+        hasType(
+          asString("short")
+        )
+        ,
+        hasType(
+          asString("const short")
+        )
       )
     ).bind("implicit_argument_cast_param")
   )
