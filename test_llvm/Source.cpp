@@ -203,8 +203,18 @@ binaryOperator(
             expr().bind("binary_operator_type_narrowing_rhs")
             ,
             hasSourceExpression(
-              hasType(
-                asString("BOOL")
+              anyOf (
+                hasType(
+                  asString("BOOL")
+                )
+                ,
+                hasType(
+                  asString("long")
+                )
+                ,
+                hasType(
+                  asString("int")
+                )
               )
             )
           )
@@ -212,9 +222,14 @@ binaryOperator(
       )
       ,
       ignoringImpCasts (
-        cxxMemberCallExpr(
-          hasType(
-            asString("BOOL")
+        callExpr(
+          anyOf(
+            hasType(
+              asString("BOOL")
+            )
+            ,
+            hasType(
+              asString("size_t")
           )
         ).bind("binary_operator_type_narrowing_rhs")
       )
@@ -230,6 +245,10 @@ binaryOperator(
         ,
         hasType(
           asString("short")
+        )
+        ,
+        hasType(
+          asString("char")
         )
       )
     ).bind("binary_operator_type_narrowing_lhs")
