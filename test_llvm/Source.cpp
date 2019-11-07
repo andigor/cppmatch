@@ -64,7 +64,7 @@ StatementMatcher cstring_cast_matcher = cxxMemberCallExpr(
                                          ).bind("cstring_cast_matcher");
 
 
-StatementMatcher assigment_macther =
+StatementMatcher assign_within_if =
 ifStmt(
   has (
     implicitCastExpr (
@@ -540,7 +540,7 @@ int main(int argc, const char** argv)
       MatchFinder Finder;
 
       Finder.addMatcher(cstring_cast_matcher, &Printer);
-      Finder.addMatcher(assigment_macther, &Printer);
+      Finder.addMatcher(assign_within_if, &Printer);
       Finder.addMatcher(narrow_argument_type_matcher, &Printer);
       Finder.addMatcher(minus_one_literal, &Printer);
       Finder.addMatcher(binary_operator_type_narrowing, &Printer);
