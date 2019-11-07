@@ -420,6 +420,7 @@ public:
     const unsigned end_col_num = manager.getSpellingColumnNumber(real_end);
 
     std::cout
+      << "file_name: " << file_name << std::endl
       << "start r: " << start_line_num
       << " start c: " << start_col_num
       << " end   r: " << end_line_num
