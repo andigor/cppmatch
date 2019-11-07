@@ -187,6 +187,54 @@ callExpr(
   )
 );
 
+StatementMatcher binary_operator_type_narrowing =
+binaryOperator(
+  unless(
+    isExpansionInSystemHeader()
+  )
+  ,
+  hasOperatorName("=")
+  ,
+  hasRHS(
+    anyOf (
+      implicitCastExpr(
+        has(
+          implicitCastExpr(
+            expr().bind("binary_operator_type_narrowing_rhs")
+            ,
+            hasSourceExpression(
+              hasType(
+                asString("BOOL")
+              )
+            )
+          )
+        )
+      )
+      ,
+      ignoringImpCasts (
+        cxxMemberCallExpr(
+          hasType(
+            asString("BOOL")
+          )
+        ).bind("binary_operator_type_narrowing_rhs")
+      )
+    )
+  )
+  ,
+  hasLHS(
+    expr(
+      anyOf(
+        hasType(
+          asString("WORD")
+        )
+        ,
+        hasType(
+          asString("short")
+        )
+      )
+    ).bind("binary_operator_type_narrowing_lhs")
+  )
+);
 
 struct file_line {
   std::string line_;
@@ -335,6 +383,15 @@ public:
       replace_with(o, Result.Context, "0");
 
       replace_with(v, Result.Context, "xffffffff");
+    }
+
+    //if (const BinaryOperator* v = Result.Nodes.getNodeAs<clang::BinaryOperator>("binary_operator_type_narrowing")) {
+    if (const Expr* r = Result.Nodes.getNodeAs<clang::Expr>("binary_operator_type_narrowing_rhs")) {
+      //v->dump();
+      //dump_location(v, Result.Context);
+      const Expr* l = Result.Nodes.getNodeAs<clang::Expr>("binary_operator_type_narrowing_lhs");
+
+      insert_explicit_static_cast(r, Result.Context, l->getType().getAsString() );
     }
 
   }
@@ -486,6 +543,7 @@ int main(int argc, const char** argv)
       Finder.addMatcher(assigment_macther, &Printer);
       Finder.addMatcher(narrow_argument_type_matcher, &Printer);
       Finder.addMatcher(minus_one_literal, &Printer);
+      Finder.addMatcher(binary_operator_type_narrowing, &Printer);
 
       Tool.run(newFrontendActionFactory(&Finder).get());
     }
