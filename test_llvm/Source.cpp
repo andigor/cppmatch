@@ -230,6 +230,7 @@ binaryOperator(
             ,
             hasType(
               asString("size_t")
+            )
           )
         ).bind("binary_operator_type_narrowing_rhs")
       )
