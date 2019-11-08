@@ -514,7 +514,7 @@ public:
       const unsigned end_line_num = manager.getSpellingLineNumber(real_end);
       const unsigned end_col_num = manager.getSpellingColumnNumber(real_end);
 
-      content.insert_text(end_line_num - 1, end_col_num - 1, " ) ");
+      content.insert_text(end_line_num - 1, end_col_num - 1, " ) != nullptr ");
     }
 
   }
