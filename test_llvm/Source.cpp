@@ -25,7 +25,9 @@ using namespace clang::tooling;
 using namespace clang;
 using namespace clang::ast_matchers;
 
-StatementMatcher cstring_cast_matcher = cxxMemberCallExpr(
+StatementMatcher cstring_cast_matcher = callExpr(
+                                               unless(isExpansionInSystemHeader())
+                                               ,
                                                anyOf(
                                                   callee( cxxMethodDecl(hasName("LogInfo" ) ) )
                                                 , callee( cxxMethodDecl(hasName("LogDebug") ) )
@@ -36,6 +38,11 @@ StatementMatcher cstring_cast_matcher = cxxMemberCallExpr(
                                                 , callee( cxxMethodDecl(hasName("Info") ) )
                                                 , callee( cxxMethodDecl(hasName("Format") ) )
                                                 , callee( cxxMethodDecl(hasName("Error") ) )
+                                                , callee( cxxMethodDecl(hasName("Alarm") ) )
+                                                , callee( cxxMethodDecl(hasName("WinDebug") ) )
+                                                , callee( functionDecl(hasName("sprintf_s") ) )
+                                                , callee( functionDecl(hasName("sprintf") ) )
+                                                , callee( cxxMethodDecl(hasName("SetMessage") ) )
                                                )
                                                ,
                                                eachOf (
@@ -48,6 +55,14 @@ StatementMatcher cstring_cast_matcher = cxxMemberCallExpr(
                                                        ,
                                                        hasType(
                                                          asString("const CString")
+                                                       )
+                                                       ,
+                                                       hasType(
+                                                         asString("const CString&")
+                                                       )
+                                                       ,
+                                                       hasType(
+                                                         asString("CString&")
                                                        )
                                                      )
                                                    ).bind( "temp_arg" )
@@ -69,13 +84,9 @@ ifStmt(
   has (
     implicitCastExpr (
       has (
-        implicitCastExpr (
-          has (
-            binaryOperator(
-              hasOperatorName("=")
-            ).bind("assign_within_if")
-          )
-        )
+        binaryOperator(
+          hasOperatorName("=")
+        ).bind("assign_within_if")
       )
     )
   )
@@ -128,17 +139,31 @@ callExpr(
   )
   ,
   forEachArgumentWithParam(
-    declRefExpr(
-      hasType(
-        asString("int")
-      )
-      ,
-      unless(
-        hasAncestor(
-          cxxStaticCastExpr()
+    anyOf (
+      declRefExpr(
+        hasType(
+          asString("int")
         )
-      )
-    ).bind("implicit_argument_cast")
+        ,
+        unless(
+          hasAncestor(
+            cxxStaticCastExpr()
+          )
+        )
+      ).bind("implicit_argument_cast")
+      ,
+      memberExpr(
+        hasType(
+          asString("int")
+        )
+        ,
+        unless(
+          hasAncestor(
+            cxxStaticCastExpr()
+          )
+        )
+      ).bind("implicit_argument_cast")
+    )
     ,
     parmVarDecl(
       anyOf (
@@ -152,6 +177,10 @@ callExpr(
         ,
         hasType(
           asString("const short")
+        )
+        ,
+        hasType(
+          asString("WORD")
         )
       )
     ).bind("implicit_argument_cast_param")
@@ -251,10 +280,24 @@ binaryOperator(
         hasType(
           asString("char")
         )
+        ,
+        hasType(
+          asString("unsigned char")
+        )
       )
     ).bind("binary_operator_type_narrowing_lhs")
   )
 );
+
+DeclarationMatcher func_def_matcher =
+  functionDecl(
+    isDefinition()
+    ,
+    unless(
+      isExpansionInSystemHeader()
+    )
+  ).bind("func_def_matcher");
+
 
 struct file_line {
   std::string line_;
@@ -374,6 +417,8 @@ public:
   }
   virtual void run(const MatchFinder::MatchResult& Result) {
     if (const Expr* a = Result.Nodes.getNodeAs<clang::Expr>("temp_arg")) {
+      //std::cout << "matched temp_arg" << std::endl;
+      //a->dump();
       insert_explicit_get_string(a, Result.Context);
     }
 
@@ -388,7 +433,8 @@ public:
 
     //if ( const DeclRefExpr* v = Result.Nodes.getNodeAs<clang::DeclRefExpr>("implicit_argument_cast")) {
     //if ( const ImplicitCastExpr* v = Result.Nodes.getNodeAs<clang::ImplicitCastExpr>("implicit_argument_cast")) {
-    if ( const DeclRefExpr* v = Result.Nodes.getNodeAs<clang::DeclRefExpr>("implicit_argument_cast")) {
+    if ( const Expr* v = Result.Nodes.getNodeAs<clang::Expr>("implicit_argument_cast")) {
+      std::cout << "matched implicit_argument_cast" << std::endl;
       //v->dump();
 
       const ParmVarDecl* d = Result.Nodes.getNodeAs<clang::ParmVarDecl>("implicit_argument_cast_param");
@@ -414,6 +460,56 @@ public:
       insert_explicit_static_cast(r, Result.Context, l->getType().getAsString() );
     }
 
+    if (const FunctionDecl* d = Result.Nodes.getNodeAs<clang::FunctionDecl>("func_def_matcher")) {
+      //std::cout << "matched func_def_matcher" << std::endl;
+      //std::cout << "func_func: " << d->getNameAsString() << std::endl;
+      //std::vector<std::string> params;
+      if (d->getBody()) {
+        for (size_t i = 0; i < d->getNumParams(); ++i) {
+          auto p = d->getParamDecl(i);
+          //params.push_back(p->getNameAsString());
+          //std::cout << "    " << p->getNameAsString();
+
+
+          auto var_def =
+            findAll(
+              declRefExpr(
+                to(
+                  parmVarDecl(
+                    equalsNode(p)
+                  )
+                )
+              ).bind("var_usage")
+            );
+
+          bool matched = !match(var_def, *d->getBody(), d->getASTContext()).empty();
+
+          if (!matched) {
+            size_t count = 0;
+            if (const CXXConstructorDecl* cxxd = Result.Nodes.getNodeAs<clang::CXXConstructorDecl>("func_def_matcher")) {
+              for (const auto init : cxxd->inits()) {
+                count += match(var_def, *init->getInit(), cxxd->getASTContext()).size();
+              }
+            }
+            if (!matched && count == 0) {
+              //std::cout << d->getNameAsString() << " p: " << p->getNameAsString() << " is not used!" << std::endl;
+              //dump_location(p, Result.Context);
+              if (p->getNameAsString().length() > 0) {
+                hide_param(p, Result.Context);
+                p->dump();
+              }
+
+            }
+          }
+          else {
+            //std::cout << " matched: " << matched.size() << " times" << std::endl;
+          }
+
+        }
+      }
+      //std::cout << "finished" << std::endl;
+    }
+
   }
 
   template <class Node, class Manager>
@@ -427,7 +523,7 @@ public:
   template <class Node>
   void dump_location (Node n, const clang::ASTContext* context) {
     const auto& manager = context->getSourceManager();
-    auto file_name = manager.getFilename(n->getExprLoc()).str();
+    auto file_name = manager.getFilename(n->getBeginLoc()).str();
     file_content& content = files_content_.get_file_data(file_name);
 
     const auto& start_loc = n->getBeginLoc();
@@ -515,7 +611,7 @@ public:
       const unsigned end_line_num = manager.getSpellingLineNumber(real_end);
       const unsigned end_col_num = manager.getSpellingColumnNumber(real_end);
 
-      content.insert_text(end_line_num - 1, end_col_num - 1, " ) != nullptr ");
+      content.insert_text(end_line_num - 1, end_col_num - 1, " ) == true ");
     }
 
   }
@@ -540,6 +636,29 @@ public:
     content.replace_text(start_line_num - 1, start_col_num - 1, end_col_num - 1, txt.c_str());
   }
 
+  template <class Node>
+  void hide_param(Node n, const clang::ASTContext* context) {
+
+    const auto& manager = context->getSourceManager();
+    auto file_name = manager.getFilename(n->getLocation()).str();
+    file_content& content = files_content_.get_file_data(file_name);
+
+    const auto& start_loc = n->getLocation();
+
+    const unsigned start_line_num = manager.getSpellingLineNumber(start_loc);
+    const unsigned start_col_num = manager.getSpellingColumnNumber(start_loc);
+
+    content.insert_text(start_line_num - 1, start_col_num - 1, " /*");
+
+    auto real_end = get_real_end( n, manager );
+    const unsigned end_line_num = manager.getSpellingLineNumber(real_end);
+    const unsigned end_col_num = manager.getSpellingColumnNumber(real_end);
+
+    content.insert_text(end_line_num - 1, end_col_num - 1, "*/");
+
+    //std::cout << start_line_num << " " << start_col_num << " " << end_line_num << " "<< end_col_num << std::endl;
+  }
+
 
 };
 
@@ -561,10 +680,11 @@ int main(int argc, const char** argv)
       MatchFinder Finder;
 
       Finder.addMatcher(cstring_cast_matcher, &Printer);
-      Finder.addMatcher(assign_within_if, &Printer);
+      // Finder.addMatcher(assign_within_if, &Printer);
       Finder.addMatcher(narrow_argument_type_matcher, &Printer);
-      Finder.addMatcher(minus_one_literal, &Printer);
+      //Finder.addMatcher(minus_one_literal, &Printer);
       Finder.addMatcher(binary_operator_type_narrowing, &Printer);
+      Finder.addMatcher(func_def_matcher, &Printer);
 
       Tool.run(newFrontendActionFactory(&Finder).get());
     }
